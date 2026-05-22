@@ -34,7 +34,89 @@ def init_db():
             observacao   TEXT,
             FOREIGN KEY (auditoria_id) REFERENCES auditorias(id)
         );
+
+        CREATE TABLE IF NOT EXISTS normas (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome          TEXT NOT NULL,
+            versao        TEXT,
+            origem        TEXT DEFAULT 'importado',
+            data_ingestao TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS controles_norma (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            norma_id    INTEGER NOT NULL,
+            controle_id TEXT NOT NULL,
+            tema_id     TEXT NOT NULL,
+            tema_nome   TEXT,
+            nome        TEXT NOT NULL,
+            descricao   TEXT,
+            FOREIGN KEY (norma_id) REFERENCES normas(id)
+        );
     """)
+    conn.commit()
+    conn.close()
+
+
+def salvar_norma(nome: str, versao: str, controles: list[dict]) -> int:
+    conn = get_connection()
+    cursor = conn.cursor()
+    data_ingestao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute(
+        "INSERT INTO normas (nome, versao, origem, data_ingestao) VALUES (?, ?, 'importado', ?)",
+        (nome, versao, data_ingestao),
+    )
+    norma_id = cursor.lastrowid
+    for c in controles:
+        cursor.execute(
+            """INSERT INTO controles_norma
+               (norma_id, controle_id, tema_id, tema_nome, nome, descricao)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                norma_id,
+                c["id"],
+                c["tema"],
+                c.get("tema_nome", ""),
+                c["nome"],
+                c.get("descricao", ""),
+            ),
+        )
+    conn.commit()
+    conn.close()
+    return norma_id
+
+
+def get_normas() -> list[dict]:
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM normas ORDER BY data_ingestao DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_controles_norma(norma_id: int) -> list[dict]:
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM controles_norma WHERE norma_id = ? ORDER BY controle_id",
+        (norma_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def deletar_auditoria(auditoria_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM respostas WHERE auditoria_id = ?", (auditoria_id,))
+    conn.execute("DELETE FROM auditorias WHERE id = ?", (auditoria_id,))
+    conn.commit()
+    conn.close()
+
+
+def deletar_norma(norma_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM controles_norma WHERE norma_id = ?", (norma_id,))
+    conn.execute("DELETE FROM normas WHERE id = ?", (norma_id,))
     conn.commit()
     conn.close()
 
