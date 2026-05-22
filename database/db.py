@@ -14,7 +14,7 @@ def get_connection():
 
 def init_db():
     conn = get_connection()
-    conn.executescript("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS auditorias (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             empresa     TEXT NOT NULL,
@@ -23,8 +23,9 @@ def init_db():
             data_inicio TEXT NOT NULL,
             data_fim    TEXT,
             status      TEXT DEFAULT 'em_andamento'
-        );
-
+        )
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS respostas (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             auditoria_id INTEGER NOT NULL,
@@ -33,16 +34,18 @@ def init_db():
             status       TEXT NOT NULL,
             observacao   TEXT,
             FOREIGN KEY (auditoria_id) REFERENCES auditorias(id)
-        );
-
+        )
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS normas (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             nome          TEXT NOT NULL,
             versao        TEXT,
             origem        TEXT DEFAULT 'importado',
             data_ingestao TEXT NOT NULL
-        );
-
+        )
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS controles_norma (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             norma_id    INTEGER NOT NULL,
@@ -52,10 +55,31 @@ def init_db():
             nome        TEXT NOT NULL,
             descricao   TEXT,
             FOREIGN KEY (norma_id) REFERENCES normas(id)
-        );
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS empresa (
+            id            INTEGER PRIMARY KEY CHECK (id = 1),
+            nome          TEXT NOT NULL,
+            cnpj          TEXT,
+            razao_social  TEXT,
+            setor         TEXT,
+            porte         TEXT,
+            responsavel   TEXT,
+            atualizado_em TEXT NOT NULL
+        )
     """)
     conn.commit()
+    _migrar_empresa(conn)
     conn.close()
+
+
+def _migrar_empresa(conn):
+    colunas = {row[1] for row in conn.execute("PRAGMA table_info(empresa)")}
+    remover = {"endereco", "cidade", "estado", "telefone", "email", "site"}
+    for col in remover & colunas:
+        conn.execute(f"ALTER TABLE empresa DROP COLUMN {col}")
+    conn.commit()
 
 
 def salvar_norma(nome: str, versao: str, controles: list[dict]) -> int:
@@ -103,6 +127,62 @@ def get_controles_norma(norma_id: int) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_empresa() -> dict | None:
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM empresa WHERE id = 1").fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def salvar_empresa(dados: dict):
+    conn = get_connection()
+    atualizado_em = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    existe = conn.execute("SELECT id FROM empresa WHERE id = 1").fetchone()
+    if existe:
+        conn.execute(
+            """UPDATE empresa SET
+                   nome=:nome, cnpj=:cnpj, razao_social=:razao_social,
+                   setor=:setor, porte=:porte, responsavel=:responsavel,
+                   atualizado_em=:atualizado_em
+               WHERE id = 1""",
+            {**dados, "atualizado_em": atualizado_em},
+        )
+    else:
+        conn.execute(
+            """INSERT INTO empresa
+                   (id, nome, cnpj, razao_social, setor, porte, responsavel, atualizado_em)
+               VALUES (1, :nome, :cnpj, :razao_social, :setor, :porte, :responsavel, :atualizado_em)""",
+            {**dados, "atualizado_em": atualizado_em},
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_auditorias() -> list[dict]:
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM auditorias ORDER BY data_inicio DESC"
+    ).fetchall()
+    result = []
+    for row in rows:
+        a = dict(row)
+        a["total_respostas"] = conn.execute(
+            "SELECT COUNT(*) FROM respostas WHERE auditoria_id = ?", (a["id"],)
+        ).fetchone()[0]
+        norma = conn.execute(
+            "SELECT id FROM normas WHERE nome = ?", (a["modulo"],)
+        ).fetchone()
+        if norma:
+            a["total_controles"] = conn.execute(
+                "SELECT COUNT(*) FROM controles_norma WHERE norma_id = ?", (norma[0],)
+            ).fetchone()[0]
+        else:
+            a["total_controles"] = 0
+        result.append(a)
+    conn.close()
+    return result
 
 
 def deletar_auditoria(auditoria_id: int):

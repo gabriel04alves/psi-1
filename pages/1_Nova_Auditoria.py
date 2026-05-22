@@ -14,6 +14,7 @@ from database.db import (
     deletar_auditoria,
     finalizar_auditoria,
     get_controles_norma,
+    get_empresa,
     get_normas,
     get_progresso_auditoria,
     get_respostas_auditoria,
@@ -87,68 +88,70 @@ if st.session_state.fase == "inicio":
     st.markdown("Configure os dados básicos antes de iniciar o diagnóstico.")
     st.markdown("---")
 
+    empresa = get_empresa()
     normas = get_normas()
 
+    pendencias = []
+    if not empresa:
+        pendencias.append("nenhuma empresa cadastrada no sistema")
     if not normas:
+        pendencias.append("nenhuma norma cadastrada no sistema")
+
+    if pendencias:
         st.warning(
-            "Nenhuma norma cadastrada no sistema. "
-            "Adicione pelo menos uma norma antes de iniciar uma auditoria."
+            "Não é possível iniciar uma auditoria: "
+            + " e ".join(pendencias).capitalize() + ". "
+            "Configure o sistema antes de continuar."
         )
-        st.page_link(
-            "pages/0_Injestão_de_Controles.py",
-            label="Ir para Ingestão de Controles",
-            icon="📥",
-        )
+        st.page_link("pages/0_Ingestão_de_Dados.py", label="Ir para Ingestão de Dados", icon="📥")
         st.stop()
 
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        st.markdown("### 1. Selecionar Norma")
-
-        opcoes_label = []
-        opcoes_id = []
-        for n in normas:
-            label = n["nome"]
-            if n["versao"]:
-                label += f" ({n['versao']})"
-            opcoes_label.append(label)
-            opcoes_id.append(n["id"])
-
-        idx_norma = st.selectbox(
-            "Qual norma deseja auditar?",
-            range(len(opcoes_label)),
-            format_func=lambda i: opcoes_label[i],
-        )
-        norma_selecionada = normas[idx_norma]
-
-        total_controles = len(get_controles_norma(norma_selecionada["id"]))
-        st.caption(f"{total_controles} controles disponíveis nesta norma.")
-
-    with col2:
-        st.markdown("### 2. Dados da Empresa")
-        empresa = st.text_input("Nome da Empresa *", placeholder="Ex: Empresa Exemplo Ltda")
-        cnpj = st.text_input("CNPJ (opcional)", placeholder="00.000.000/0001-00")
+    st.markdown("### Empresa auditada")
+    detalhes = []
+    if empresa.get("cnpj"):
+        detalhes.append(f"CNPJ: {empresa['cnpj']}")
+    if empresa.get("setor"):
+        detalhes.append(f"Setor: {empresa['setor']}")
+    if empresa.get("porte"):
+        detalhes.append(f"Porte: {empresa['porte']}")
+    st.markdown(f"**{empresa['nome']}**")
+    if detalhes:
+        st.caption(" · ".join(detalhes))
 
     st.markdown("---")
+    st.markdown("### Selecionar Norma")
 
+    opcoes_label = []
+    for n in normas:
+        label = n["nome"]
+        if n["versao"]:
+            label += f" ({n['versao']})"
+        opcoes_label.append(label)
+
+    idx_norma = st.selectbox(
+        "Qual norma deseja auditar?",
+        range(len(opcoes_label)),
+        format_func=lambda i: opcoes_label[i],
+    )
+    norma_selecionada = normas[idx_norma]
+    total_controles = len(get_controles_norma(norma_selecionada["id"]))
+    st.caption(f"{total_controles} controles disponíveis nesta norma.")
+
+    st.markdown("---")
     col_btn1, _ = st.columns([1, 5])
     with col_btn1:
-        if st.button("Iniciar Auditoria", type="primary", disabled=not empresa.strip()):
+        if st.button("Iniciar Auditoria", type="primary"):
             st.session_state.norma_id = norma_selecionada["id"]
             st.session_state.norma_nome = opcoes_label[idx_norma]
-            st.session_state.empresa = empresa.strip()
-            st.session_state.cnpj = cnpj.strip()
+            st.session_state.empresa = empresa["nome"]
+            st.session_state.cnpj = empresa.get("cnpj", "")
             st.session_state.controle_index = 0
             st.session_state.fase = "auditoria"
             aud_id = criar_auditoria(
-                empresa.strip(), cnpj.strip(), norma_selecionada["nome"]
+                empresa["nome"], empresa.get("cnpj", ""), norma_selecionada["nome"]
             )
             st.session_state.auditoria_id = aud_id
             st.rerun()
-
-    if not empresa.strip():
-        st.caption("Informe o nome da empresa para continuar.")
 
 
 # ── 2ª etapa: auditoria ───────────────────────────────────────────────────────
@@ -183,7 +186,12 @@ elif st.session_state.fase == "auditoria":
         st.markdown("Revise e finalize a auditoria para gerar o dashboard.")
 
         respostas = get_respostas_auditoria(st.session_state.auditoria_id)
-        contagem = {"conforme": 0, "nao_conforme": 0, "em_andamento": 0, "nao_se_aplica": 0}
+        contagem = {
+            "conforme": 0,
+            "nao_conforme": 0,
+            "em_andamento": 0,
+            "nao_se_aplica": 0,
+        }
         for r in respostas:
             contagem[r["status"]] = contagem.get(r["status"], 0) + 1
 
@@ -219,7 +227,9 @@ elif st.session_state.fase == "auditoria":
                 respondidos_t = sum(1 for c in controles_tema if c["id"] in r_map)
                 total_t = len(controles_tema)
                 pct_t = respondidos_t / total_t if total_t else 0
-                st.markdown(f"**{tid}. {tnome[:25]}{'...' if len(tnome) > 25 else ''}**")
+                st.markdown(
+                    f"**{tid}. {tnome[:25]}{'...' if len(tnome) > 25 else ''}**"
+                )
                 st.progress(pct_t, text=f"{respondidos_t}/{total_t}")
 
         st.markdown(
@@ -327,7 +337,9 @@ elif st.session_state.fase == "auditoria":
                         key=f"salvar_nc_{controle['id']}",
                     ):
                         status_final = (
-                            "em_andamento" if "andamento" in andamento else "nao_conforme"
+                            "em_andamento"
+                            if "andamento" in andamento
+                            else "nao_conforme"
                         )
                         salvar_resposta(
                             st.session_state.auditoria_id,
