@@ -160,6 +160,38 @@ def salvar_empresa(dados: dict):
     conn.close()
 
 
+def get_analise_auditoria(auditoria_id: int) -> dict | None:
+    conn = get_connection()
+    aud = conn.execute(
+        "SELECT * FROM auditorias WHERE id = ?", (auditoria_id,)
+    ).fetchone()
+    if not aud:
+        conn.close()
+        return None
+    aud = dict(aud)
+    rows = conn.execute(
+        """
+        SELECT
+            r.controle_id,
+            r.tema_id,
+            r.status,
+            r.observacao,
+            COALESCE(cn.tema_nome, r.tema_id)   AS tema_nome,
+            COALESCE(cn.nome,      r.controle_id) AS controle_nome,
+            COALESCE(cn.descricao, '')             AS descricao
+        FROM respostas r
+        LEFT JOIN normas n  ON n.nome = :modulo
+        LEFT JOIN controles_norma cn
+               ON cn.norma_id = n.id AND cn.controle_id = r.controle_id
+        WHERE r.auditoria_id = :aud_id
+        ORDER BY r.controle_id
+        """,
+        {"modulo": aud["modulo"], "aud_id": auditoria_id},
+    ).fetchall()
+    conn.close()
+    return {"auditoria": aud, "respostas": [dict(r) for r in rows]}
+
+
 def get_auditorias() -> list[dict]:
     conn = get_connection()
     rows = conn.execute(
