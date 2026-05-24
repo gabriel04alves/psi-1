@@ -14,7 +14,7 @@ from database.db import (
     deletar_auditoria,
     finalizar_auditoria,
     get_controles_norma,
-    get_empresa,
+    get_empresa_by_name,
     get_normas,
     get_progresso_auditoria,
     get_respostas_auditoria,
@@ -88,35 +88,28 @@ if st.session_state.fase == "inicio":
     st.markdown("Configure os dados básicos antes de iniciar o diagnóstico.")
     st.markdown("---")
 
-    empresa = get_empresa()
+    empresa_nome = st.session_state.get("empresa_selecionada")
     normas = get_normas()
 
-    pendencias = []
-    if not empresa:
-        pendencias.append("nenhuma empresa cadastrada no sistema")
-    if not normas:
-        pendencias.append("nenhuma norma cadastrada no sistema")
-
-    if pendencias:
+    if not empresa_nome:
         st.warning(
-            "Não é possível iniciar uma auditoria: "
-            + " e ".join(pendencias).capitalize() + ". "
-            "Configure o sistema antes de continuar."
+            "Nenhuma empresa selecionada. Selecione uma empresa antes de continuar."
         )
-        st.page_link("pages/0_Ingestão_de_Dados.py", label="Ir para Ingestão de Dados", icon="📥")
+        st.page_link("pages/1_Empresa.py", label="Ir para Empresa", icon="🏢")
+        st.stop()
+
+    if not normas:
+        st.warning(
+            "Nenhuma norma cadastrada no sistema. "
+            "Importe uma norma antes de iniciar a auditoria."
+        )
+        st.page_link(
+            "pages/2_Ingestão_de_Dados.py", label="Ir para Ingestão de Dados", icon="📥"
+        )
         st.stop()
 
     st.markdown("### Empresa auditada")
-    detalhes = []
-    if empresa.get("cnpj"):
-        detalhes.append(f"CNPJ: {empresa['cnpj']}")
-    if empresa.get("setor"):
-        detalhes.append(f"Setor: {empresa['setor']}")
-    if empresa.get("porte"):
-        detalhes.append(f"Porte: {empresa['porte']}")
-    st.markdown(f"**{empresa['nome']}**")
-    if detalhes:
-        st.caption(" · ".join(detalhes))
+    st.markdown(f"**{empresa_nome}**")
 
     st.markdown("---")
     st.markdown("### Selecionar Norma")
@@ -141,21 +134,35 @@ if st.session_state.fase == "inicio":
     col_btn1, _ = st.columns([1, 5])
     with col_btn1:
         if st.button("Iniciar Auditoria", type="primary"):
+            # Get empresa_id from empresa_nome
+            empresa_data = get_empresa_by_name(empresa_nome)
+            if not empresa_data:
+                st.error(f"Empresa '{empresa_nome}' não encontrada no banco de dados.")
+                st.stop()
+
             st.session_state.norma_id = norma_selecionada["id"]
             st.session_state.norma_nome = opcoes_label[idx_norma]
-            st.session_state.empresa = empresa["nome"]
-            st.session_state.cnpj = empresa.get("cnpj", "")
+            st.session_state.empresa = empresa_nome
+            st.session_state.cnpj = ""
             st.session_state.controle_index = 0
             st.session_state.fase = "auditoria"
-            aud_id = criar_auditoria(
-                empresa["nome"], empresa.get("cnpj", ""), norma_selecionada["nome"]
-            )
+            aud_id = criar_auditoria(empresa_data["id"], norma_selecionada["id"])
             st.session_state.auditoria_id = aud_id
             st.rerun()
 
 
 # ── 2ª etapa: auditoria ───────────────────────────────────────────────────────
 elif st.session_state.fase == "auditoria":
+    # Validar que auditoria_id é válido
+    if not st.session_state.auditoria_id:
+        st.error(
+            "Erro: Auditoria não foi criada corretamente. Por favor, inicie novamente."
+        )
+        if st.button("Voltar para Início"):
+            reiniciar()
+            st.rerun()
+        st.stop()
+
     controles = get_controles()
     temas = get_temas(controles)
     total = len(controles)
@@ -336,6 +343,12 @@ elif st.session_state.fase == "auditoria":
                         type="primary",
                         key=f"salvar_nc_{controle['id']}",
                     ):
+                        if not st.session_state.auditoria_id:
+                            st.error(
+                                "Erro: ID da auditoria é inválido. Recarregando..."
+                            )
+                            st.rerun()
+
                         status_final = (
                             "em_andamento"
                             if "andamento" in andamento
@@ -353,6 +366,10 @@ elif st.session_state.fase == "auditoria":
                         st.rerun()
 
         elif status_selecionado in ("conforme", "nao_se_aplica"):
+            if not st.session_state.auditoria_id:
+                st.error("Erro: ID da auditoria é inválido. Recarregando...")
+                st.rerun()
+
             salvar_resposta(
                 st.session_state.auditoria_id,
                 controle["id"],

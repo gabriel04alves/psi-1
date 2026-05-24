@@ -11,17 +11,23 @@ st.set_page_config(page_title="Dashboard | PSI", page_icon="📊", layout="wide"
 
 # ── Header
 st.title("Dashboard de Auditorias")
-st.markdown(
-    "Acompanhe o status de todas as auditorias realizadas, visualize o progresso "
-    "por empresa e norma, e gerencie os registros existentes."
-)
+st.markdown("---")
+
+empresa_selecionada = st.session_state.get("empresa_selecionada")
+
+if not empresa_selecionada:
+    st.warning("Nenhuma empresa selecionada.")
+    st.page_link("pages/1_Empresa.py", label="Selecionar Empresa", icon="🏢")
+    st.stop()
+
+st.markdown(f"Empresa: **{empresa_selecionada}**")
 st.markdown("---")
 
 # ── Dados
 if "confirmar_exclusao" not in st.session_state:
     st.session_state.confirmar_exclusao = None
 
-auditorias = get_auditorias()
+auditorias = [a for a in get_auditorias() if a["empresa"] == empresa_selecionada]
 
 # ── Métricas de resumo
 total = len(auditorias)
@@ -60,7 +66,7 @@ if not auditorias:
         """,
         unsafe_allow_html=True,
     )
-    st.page_link("pages/1_Nova_Auditoria.py", label="Ir para Nova Auditoria", icon="🔍")
+    st.page_link("pages/3_Nova_Auditoria.py", label="Ir para Nova Auditoria", icon="🔍")
 else:
     STATUS_LABEL = {
         "concluida": ("Concluída", "#22c55e", "#f0fdf4"),

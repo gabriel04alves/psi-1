@@ -18,18 +18,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.db import (
     deletar_norma,
     get_controles_norma,
-    get_empresa,
     get_normas,
     salvar_norma,
-    salvar_empresa,
 )
 
 st.set_page_config(page_title="Ingestão de Dados | PSI", page_icon="📥", layout="wide")
 
 st.title("Ingestão de Dados")
-st.markdown(
-    "Preencha os dados da empresa. Importe controles de normas externas (ISO, NIST, CIS, etc.) para o sistema."
-)
+st.markdown("Importe controles de normas externas (ISO, NIST, CIS, etc.) para o sistema.")
 
 CAMPOS_OBRIGATORIOS = {"id", "tema", "nome"}
 
@@ -118,97 +114,7 @@ def parse_arquivo(uploaded_file) -> list[dict]:
 
 # ── UI principal
 
-tab_empresa, tab_importar, tab_normas = st.tabs(
-    ["Empresa", "Importar Norma", "Normas cadastradas"]
-)
-
-PORTES = ["", "Microempresa (ME)", "Pequena", "Média", "Grande", "Multinacional"]
-
-with tab_empresa:
-    empresa = get_empresa()
-    v = empresa or {}
-
-    if not empresa:
-        st.markdown(
-            """
-            <div style='
-                border: 1px solid #bfdbfe;
-                background: #eff6ff;
-                border-radius: 12px;
-                padding: 20px 24px;
-                margin-bottom: 24px;
-            '>
-                <div style='font-size:16px;font-weight:600;color:#1d4ed8;margin-bottom:4px'>
-                    Primeiro acesso — cadastre sua empresa
-                </div>
-                <div style='font-size:13px;color:#1e40af'>
-                    Preencha os dados abaixo para identificar a organização no sistema.
-                    Essas informações serão usadas em todas as auditorias.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.caption(f"Última atualização: {empresa['atualizado_em'][:16]}")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        nome = st.text_input(
-            "Nome fantasia *", value=v.get("nome", ""), placeholder="Ex: Acme Corp"
-        )
-        cnpj = st.text_input(
-            "CNPJ", value=v.get("cnpj", ""), placeholder="00.000.000/0001-00"
-        )
-    with col2:
-        razao_social = st.text_input(
-            "Razão social",
-            value=v.get("razao_social", ""),
-            placeholder="Ex: Acme Tecnologia Ltda",
-        )
-        setor = st.text_input(
-            "Setor / Ramo",
-            value=v.get("setor", ""),
-            placeholder="Ex: Tecnologia da Informação",
-        )
-
-    col3, col4 = st.columns(2)
-    with col3:
-        porte_idx = (
-            PORTES.index(v.get("porte", "")) if v.get("porte", "") in PORTES else 0
-        )
-        porte = st.selectbox("Porte", PORTES, index=porte_idx)
-    with col4:
-        responsavel = st.text_input(
-            "Responsável pelo SGSI",
-            value=v.get("responsavel", ""),
-            placeholder="Nome do gestor de segurança da informação",
-        )
-
-    st.markdown("---")
-    col_btn, _ = st.columns([1, 5])
-    with col_btn:
-        if st.button(
-            "Salvar dados da empresa",
-            type="primary",
-            icon="💾",
-            disabled=not nome.strip(),
-        ):
-            salvar_empresa(
-                {
-                    "nome": nome.strip(),
-                    "cnpj": cnpj.strip(),
-                    "razao_social": razao_social.strip(),
-                    "setor": setor.strip(),
-                    "porte": porte,
-                    "responsavel": responsavel.strip(),
-                }
-            )
-            st.success("Dados da empresa salvos com sucesso.")
-            st.rerun()
-
-    if not nome.strip():
-        st.caption("Preencha pelo menos o nome fantasia para salvar.")
+tab_importar, tab_normas = st.tabs(["Importar Norma", "Normas cadastradas"])
 
 with tab_importar:
     st.subheader("1. Metadados da norma")
