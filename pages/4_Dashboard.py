@@ -17,7 +17,7 @@ empresa_selecionada = st.session_state.get("empresa_selecionada")
 
 if not empresa_selecionada:
     st.warning("Nenhuma empresa selecionada.")
-    st.page_link("pages/1_Empresa.py", label="Selecionar Empresa", icon="🏢")
+    st.page_link("pages/1_Empresas.py", label="Selecionar Empresa", icon="🏢")
     st.stop()
 
 st.markdown(f"Empresa: **{empresa_selecionada}**")

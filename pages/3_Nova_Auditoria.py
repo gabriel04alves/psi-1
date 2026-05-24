@@ -95,7 +95,7 @@ if st.session_state.fase == "inicio":
         st.warning(
             "Nenhuma empresa selecionada. Selecione uma empresa antes de continuar."
         )
-        st.page_link("pages/1_Empresa.py", label="Ir para Empresa", icon="🏢")
+        st.page_link("pages/1_Empresas.py", label="Ir para Empresa", icon="🏢")
         st.stop()
 
     if not normas:
