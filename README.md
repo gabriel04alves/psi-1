@@ -102,6 +102,75 @@ A interface abre automaticamente em `http://localhost:8501`.
 
 ---
 
+## Guia de uso
+
+### Pré-condição: norma ISO atualizada
+
+O sistema não distribui o texto das normas ISO por questões de licenciamento. Antes de iniciar uma auditoria você precisa ter em mãos o **PDF oficial e atualizado** da norma desejada (ex.: ABNT NBR ISO/IEC 27002:2022).
+
+### Passo 1 — Cadastrar a empresa
+
+Acesse **Empresas** e registre o perfil da organização que será auditada (nome, CNPJ, setor, porte, responsável).
+
+### Passo 2 — Formatar a ISO (obrigatório para PDFs novos)
+
+> A plataforma precisa dos controles em formato estruturado. Se você já tiver um arquivo `.json`, `.csv` ou `.py` com os controles, pule para o Passo 3.
+
+1. Acesse **🧰 Formatar ISO a partir de PDF** no menu lateral.
+2. Faça upload do PDF da norma.
+3. Clique em **Extrair conteúdo do PDF** — o sistema identifica automaticamente os controles no padrão ABNT.
+4. Baixe o arquivo **JSON** gerado.
+
+O arquivo exportado segue a estrutura:
+
+```json
+[
+  {
+    "id": "5.1",
+    "tema": "5",
+    "tema_nome": "Controles Organizacionais",
+    "nome": "Políticas para segurança da informação",
+    "descricao": "..."
+  }
+]
+```
+
+Também são aceitos **CSV** e **Python (`.py`)** com a mesma estrutura de campos (`id`, `tema`, `nome` são obrigatórios):
+
+```csv
+id,tema,tema_nome,nome,descricao
+5.1,5,Organizacional,Políticas de SI,...
+```
+
+```python
+CONTROLES = [
+  {"id": "5.1", "tema": "5", "nome": "Políticas de SI", "descricao": "..."}
+]
+```
+
+### Passo 3 — Importar a norma
+
+1. Acesse **📥 Ingestão de Normas**.
+2. Preencha o nome e a versão da norma (ex.: `ISO 27002`, `2022`).
+3. Faça upload do arquivo gerado no passo anterior (`.json`, `.csv` ou `.py`).
+4. Confira o preview dos controles e clique em **Salvar no banco de dados**.
+
+### Passo 4 — Conduzir a auditoria
+
+1. Acesse **🔍 Nova Auditoria**, selecione a empresa e a norma importada.
+2. Responda cada controle com um dos status: **Conforme**, **Não Conforme**, **Em Andamento** ou **Não se Aplica**, adicionando observações quando necessário.
+3. Finalize a auditoria ao concluir todos os controles.
+
+### Passo 5 — Acompanhar e exportar resultados
+
+| Página | O que fazer |
+|---|---|
+| **📊 Dashboard** | Visualize o nível de conformidade por tema e controle |
+| **📈 Comparativo** | Compare duas ou mais auditorias da mesma empresa ao longo do tempo |
+| **📄 Relatórios** | Gere e baixe o relatório em PDF para apresentação |
+
+---
+
 ## Executável standalone (sem Python)
 
 Para distribuir a aplicação sem exigir Python instalado, consulte o **[Guia de Build](GUIA_BUILD.md)**. Ele cobre Linux, Windows e macOS usando PyInstaller.
