@@ -1,305 +1,120 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="PSI - Ferramenta para Auditoria",
+    page_title="PSI — Plataforma de Segurança da Informação",
+    page_icon="🛡️",
     layout="wide",
 )
 
-st.title("🔒 PSI - Ferramenta para Auditoria")
-st.markdown("**Ferramenta de Diagnóstico de Conformidade ISO 27001 / ISO 27701**")
+# ── Header ────────────────────────────────────────────────────────────────────
+st.markdown(
+    """
+    <div style='text-align:center;padding:40px 0 20px'>
+        <div style='font-size:56px'>🛡️</div>
+        <h1 style='font-size:2.6rem;font-weight:800;color:#1e293b;margin:8px 0 4px'>
+            PSI
+        </h1>
+        <p style='font-size:1.2rem;color:#64748b;font-weight:500;margin:0'>
+            Plataforma de Segurança da Informação
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.markdown("---")
 
-# Abas principais
-tab1, tab2, tab3 = st.tabs(["📋 Guia de Uso", "🚀 Fluxo da Aplicação", "🎯 Módulos"])
+# ── Descrição ─────────────────────────────────────────────────────────────────
+col_desc, col_stats = st.columns([3, 2], gap="large")
 
-# ── TAB 1: GUIA DE USO ────────────────────────────────────────────────────────
-with tab1:
-    st.header("📖 Guia Completo de Uso")
+with col_desc:
+    st.markdown("### O que é o PSI?")
+    st.markdown(
+        """
+        O **PSI** é uma plataforma para gestão e diagnóstico de conformidade com normas de
+        segurança da informação, como **ISO 27002** e **ISO 27701**.
 
-    st.markdown("""
-    ### O que é o PSI?
-    
-    O **PSI** é uma ferramenta especializada em diagnóstico de conformidade com as normas:
-    - **ISO 27001**: Sistema de Gestão da Segurança da Informação (SGSI)
-    - **ISO 27701**: Extensão de privacidade do SGSI
-    
-    A ferramenta permite avaliar o nível de conformidade de sua organização de forma
-    sistemática, respondendo controle por controle, e gerar relatórios analíticos para
-    orientar suas melhorias.
-    """)
+        Com ele você pode:
+        - Cadastrar empresas e seus perfis de conformidade
+        - Importar normas ISO diretamente de PDFs ou bases internas
+        - Conduzir auditorias guiadas controle a controle
+        - Acompanhar o nível de conformidade em dashboards interativos
+        - Comparar auditorias ao longo do tempo e medir evolução
+        - Gerar relatórios em PDF prontos para apresentação
+        """
+    )
 
-    st.divider()
+with col_stats:
+    st.markdown("### Acesso rápido")
+    st.page_link("pages/1_Empresas.py",           label="Empresas",            icon="🏢")
+    st.page_link("pages/2_Ingestão_de_Normas.py", label="Ingestão de Normas",  icon="📥")
+    st.page_link("pages/3_Nova_Auditoria.py",      label="Nova Auditoria",      icon="🔍")
+    st.page_link("pages/4_Dashboard.py",           label="Dashboard",           icon="📊")
+    st.page_link("pages/5_Comparativo.py",         label="Comparativo",         icon="📈")
+    st.page_link("pages/6_Relatorios.py",          label="Relatórios",          icon="📄")
 
-    # Seção de Preparação
-    with st.expander("👤 **Passo 1: Preparação Inicial**", expanded=True):
-        st.markdown("""
-        #### O que você precisa:
-        
-        1. **Dados da Empresa**: Informações básicas como nome, CNPJ, setor, porte
-        2. **Normas**: Importar ISO 27001 ou ISO 27701 na base de dados
-        3. **Responsável**: Indicar quem conduzirá a auditoria
-        
-        #### Onde fazer isso?
-        - Acesse **Importar Base de Dados** para carregar as normas
-        - Vá para **Empresas** para registrar suas organizações
-        - Configure os dados de ingestão em **Ingestão de Dados**
-        """)
+st.markdown("---")
 
-    # Seção de Auditoria
-    with st.expander("📊 **Passo 2: Conduzir a Auditoria**"):
-        st.markdown("""
-        #### Como funciona:
-        
-        1. **Selecione a Empresa**: Escolha qual organização será auditada
-        2. **Escolha o Módulo**: ISO 27001 ou ISO 27701
-        3. **Responda os Controles**: Para cada controle, indique o status:
-           - ✅ **Conforme**: O controle está implementado adequadamente
-           - ⚠️ **Não Conforme**: O controle não está implementado ou não atende
-           - 🔄 **Em Processo**: O controle está sendo implementado
-        
-        4. **Adicione Observações**: Comente sobre cada controle se necessário
-        5. **Finalize**: Marque a auditoria como concluída
-        
-        #### Dicas:
-        - Reúna documentação e evidências antes de iniciar
-        - Consulte especialistas em segurança da informação
-        - Leve tempo para avaliar cada controle corretamente
-        """)
+# ── Fluxograma ────────────────────────────────────────────────────────────────
+st.markdown("### Fluxo de uso da plataforma")
 
-    # Seção de Análise
-    with st.expander("📈 **Passo 3: Análise dos Resultados**"):
-        st.markdown("""
-        #### O Dashboard oferece:
-        
-        - **Conformidade Geral**: Percentual de conformidade com a norma
-        - **Conformidade por Tema**: Detalhamento em cada área temática
-        - **Visualizações**: Gráficos para facilitar a compreensão
-        - **Métricas Detalhadas**: Informações de controles conformes e não conformes
-        
-        #### Use para:
-        - Identificar áreas críticas de não conformidade
-        - Planejar ações corretivas
-        - Apresentar resultados para stakeholders
-        """)
+st.graphviz_chart(
+    """
+    digraph fluxo {
+        graph [rankdir=LR, bgcolor="#f8fafc", pad="0.5", nodesep="0.6", ranksep="0.9"]
+        node  [fontname="Helvetica", fontsize=13, style="filled,rounded", shape=box,
+               width=1.8, height=0.55]
+        edge  [fontname="Helvetica", fontsize=11, color="#94a3b8", arrowsize=0.8]
 
-    # Seção de Comparativo
-    with st.expander("🔀 **Passo 4: Comparativo e Relatórios**"):
-        st.markdown("""
-        #### Funcionalidades disponíveis:
-        
-        1. **Comparativo Entre Auditorias**:
-           - Compare resultados de períodos diferentes
-           - Acompanhe evolução da conformidade
-           - Identifique tendências
-        
-        2. **Geração de Relatórios**:
-           - Relatórios completos: visão geral + detalhes de cada controle
-           - Relatórios por tema: foco em áreas específicas
-           - Exportar para diferentes formatos
-        
-        #### Ideal para:
-        - Comunicação com direção
-        - Cumprimento de requisitos regulatórios
-        - Documentação de conformidade
-        """)
+        // Etapas principais
+        A [label="1. Cadastrar\nEmpresa",    fillcolor="#dbeafe", color="#3b82f6", fontcolor="#1e3a5f"]
+        B [label="2. Importar\nNorma",       fillcolor="#ede9fe", color="#7c3aed", fontcolor="#2e1065"]
+        C [label="3. Iniciar\nAuditoria",    fillcolor="#dcfce7", color="#16a34a", fontcolor="#14532d"]
+        D [label="4. Responder\nControles",  fillcolor="#dcfce7", color="#16a34a", fontcolor="#14532d"]
+        E [label="5. Finalizar\nAuditoria",  fillcolor="#fef9c3", color="#ca8a04", fontcolor="#713f12"]
+        F [label="6. Dashboard",             fillcolor="#ffedd5", color="#ea580c", fontcolor="#7c2d12"]
+        G [label="7. Comparativo",           fillcolor="#fce7f3", color="#db2777", fontcolor="#831843"]
+        H [label="8. Relatório PDF",         fillcolor="#e0f2fe", color="#0284c7", fontcolor="#0c4a6e"]
 
-# ── TAB 2: FLUXO DA APLICAÇÃO ─────────────────────────────────────────────────
-with tab2:
-    st.header("🚀 Fluxo da Aplicação")
+        // Fluxo principal
+        A -> B [label="empresa\ncriada"]
+        B -> C [label="norma\ndisponível"]
+        C -> D [label="auditoria\ncriada"]
+        D -> D [label="próximo\ncontrole" style=dashed]
+        D -> E [label="todos\nrespondidos"]
+        E -> F
+        F -> G [label="≥ 2 auditorias"]
+        F -> H
+        G -> H
 
-    st.markdown("""
-    ### Jornada Típica de uma Auditoria
-    """)
+        // Reutilização
+        E -> C [label="nova\nauditoria" style=dashed color="#cbd5e1"]
+    }
+    """,
+    use_container_width=True,
+)
 
-    col1, col2, col3 = st.columns(3)
+st.markdown("---")
 
-    with col1:
-        st.markdown("""
-        #### 📥 **Configuração Inicial**
-        1. Importar normas ISO
-        2. Registrar empresas
-        3. Configurar dados de ingestão
-        """)
+# ── Legenda dos status ─────────────────────────────────────────────────────────
+st.markdown("### Status de conformidade")
 
-    with col2:
-        st.markdown("""
-        #### 🎯 **Execução**
-        1. Criar nova auditoria
-        2. Responder controles
-        3. Adicionar observações
-        4. Finalizar auditoria
-        """)
-
-    with col3:
-        st.markdown("""
-        #### 📊 **Análise e Decisão**
-        1. Visualizar dashboard
-        2. Comparar com auditorias anteriores
-        3. Gerar relatórios
-        4. Planejar ações
-        """)
-
-    st.divider()
-
-    st.markdown("### Diagrama de Fluxo")
-    st.markdown("""
-    ```
-    ┌─────────────────────────────────────────────────────────────────┐
-    │                    INÍCIO DA AUDITORIA                           │
-    └────────────────────────────┬────────────────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Importar Base de      │
-                    │  Dados (Normas)        │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Gerenciar Empresas    │
-                    │  (Registrar dados)     │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Ingestão de Dados     │
-                    │  (Normas e controles)  │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Nova Auditoria        │
-                    │  (Responder controles) │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Dashboard             │
-                    │  (Visualizar resultados)│
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Comparativo &         │
-                    │  Relatórios            │
-                    └────────────┬────────────┘
-                                 │
-                ┌────────────────▼─────────────────┐
-                │  ANÁLISE E PLANEJAMENTO DE AÇÕES │
-                └────────────────────────────────────┘
-    ```
-    """)
-
-    st.divider()
-
-    st.markdown("### Componentes Principais")
-
-    st.markdown("""
-    - **Empresa**: Organização sendo auditada
-    - **Norma**: ISO 27001 ou ISO 27701
-    - **Controle**: Item específico a ser avaliado (ex: A.5.1)
-    - **Auditoria**: Sessão de avaliação para uma empresa e norma
-    - **Resposta**: Resultado da avaliação de cada controle
-    """)
-
-# ── TAB 3: MÓDULOS ────────────────────────────────────────────────────────────
-with tab3:
-    st.header("🎯 Módulos Principais")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("""
-        ### 📥 Importar Base de Dados
-        **Função**: Carregar as normas ISO na aplicação
-        
-        - Importe ISO 27001 ou ISO 27701
-        - Define os controles disponíveis
-        - Básico para toda auditoria
-        
-        [Ir para Importação →](pages/0_Importar_Base_de_Dados.py)
-        """)
-
-        st.markdown("---")
-
-        st.markdown("""
-        ### 👥 Empresas
-        **Função**: Gerenciar dados das organizações
-        
-        - Cadastrar novas empresas
-        - Editar dados existentes
-        - Ver histórico de auditorias
-        - Deletar registros
-        
-        [Ir para Empresas →](pages/1_Empresas.py)
-        """)
-
-        st.markdown("---")
-
-        st.markdown("""
-        ### 📤 Ingestão de Dados
-        **Função**: Processar dados de controles
-        
-        - Importar controles das normas
-        - Validar estrutura dos dados
-        - Preparar para auditorias
-        
-        [Ir para Ingestão →](pages/2_Ingestão_de_Dados.py)
-        """)
-
-    with col2:
-        st.markdown("""
-        ### 🎯 Nova Auditoria
-        **Função**: Executar auditoria interativa
-        
-        - Selecionar empresa e norma
-        - Responder cada controle
-        - Adicionar observações
-        - Finalizar avaliação
-        
-        [Ir para Auditoria →](pages/3_Nova_Auditoria.py)
-        """)
-
-        st.markdown("---")
-
-        st.markdown("""
-        ### 📊 Dashboard
-        **Função**: Visualizar resultados
-        
-        - Gráficos de conformidade
-        - Métricas por tema
-        - Análise detalhada
-        - Exportar dados
-        
-        [Ir para Dashboard →](pages/4_Dashboard.py)
-        """)
-
-        st.markdown("---")
-
-        st.markdown("""
-        ### 🔀 Comparativo & Relatórios
-        **Função**: Análise comparativa e geração de documentos
-        
-        - Comparar auditorias anteriores
-        - Gerar relatórios completos
-        - Exportar resultados
-        - Acompanhar tendências
-        
-        [Ir para Comparativo →](pages/5_Comparativo.py)
-        
-        [Ir para Relatórios →](pages/6_Relatorios.py)
-        """)
-
-# ── RODAPÉ ────────────────────────────────────────────────────────────────────
-st.divider()
-
-st.markdown("""
-### 💡 Dicas Importantes
-
-- **Comece pelas normas**: Sempre importe as normas antes de qualquer auditoria
-- **Organize os dados**: Mantenha as informações das empresas atualizadas
-- **Seja consistente**: Use critérios padronizados ao avaliar controles
-- **Documente**: Adicione observações detalhadas em cada controle
-- **Revise regularmente**: Conduza auditorias periódicas para acompanhar conformidade
-
-### 📞 Suporte
-
-Para mais informações sobre ISO 27001 e ISO 27701, consulte:
-- Site ISO: www.iso.org
-- ABNT: www.abnt.org.br
-- Comunidades de segurança da informação
-""")
+cols = st.columns(4)
+status = [
+    ("#22c55e", "Conforme",       "O controle está plenamente implementado."),
+    ("#ef4444", "Não Conforme",   "O controle não foi implementado."),
+    ("#f59e0b", "Em Andamento",   "Existe trabalho em curso para adequação."),
+    ("#94a3b8", "Não se Aplica",  "O controle não é relevante para o contexto."),
+]
+for col, (cor, label, descricao) in zip(cols, status):
+    with col:
+        st.markdown(
+            f"""
+            <div style='border-left:5px solid {cor};padding:10px 14px;
+                        border-radius:0 8px 8px 0;background:#f8fafc'>
+                <strong style='color:{cor}'>{label}</strong>
+                <p style='font-size:13px;color:#475569;margin:4px 0 0'>{descricao}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )

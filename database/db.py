@@ -1,8 +1,17 @@
+import os
 import sqlite3
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = Path(__file__).parent.parent / "data" / "auditoria.db"
+
+def _resolve_db_path() -> Path:
+    env_dir = os.environ.get("PSI_DATA_DIR")
+    if env_dir:
+        return Path(env_dir) / "auditoria.db"
+    return Path(__file__).parent.parent / "data" / "auditoria.db"
+
+
+DB_PATH = _resolve_db_path()
 
 
 def get_connection():
