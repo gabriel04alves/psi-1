@@ -100,6 +100,20 @@ streamlit run streamlit_app.py
 
 A interface abre automaticamente em `http://localhost:8501`.
 
+### Dados de demonstração (opcional)
+
+Para explorar a plataforma sem cadastrar dados manualmente, execute o script de populate. Ele cria 3 empresas, importa as normas ISO 27002 e ISO 27701 e gera múltiplas auditorias com respostas fictícias simulando evolução de conformidade ao longo do tempo.
+
+```bash
+# Insere dados sem apagar o que já existe
+python utils/populate.py
+
+# Limpa o banco e recria tudo do zero
+python utils/populate.py --reset
+```
+
+O terminal exibe um resumo do que foi inserido — em seguida basta abrir qualquer empresa na página **Empresas** para explorar dashboards, comparativos e relatórios já populados.
+
 ---
 
 ## Guia de uso
