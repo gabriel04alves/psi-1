@@ -1,7 +1,9 @@
+import os
 from eralchemy2 import render_er
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "data" / "auditoria.db"
+_env_dir = os.environ.get("PSI_DATA_DIR")
+DB_PATH = (Path(_env_dir) if _env_dir else Path(__file__).parent.parent / "data") / "auditoria.db"
 
 
 def gerar_diagrama():
