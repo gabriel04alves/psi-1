@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "utils"))
 
 
 def _get_extractor():
