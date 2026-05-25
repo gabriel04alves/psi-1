@@ -202,8 +202,6 @@ psi-1/
 ├── data/                   # Bases de controles ISO e banco local
 ├── utils/                  # Utilitários (PDF, gráficos, relatórios)
 ├── requirements.txt
-├── build.sh / build.bat    # Scripts de build para executável
-└── GUIA_BUILD.md           # Guia detalhado de empacotamento
 ```
 
 ![Diagrama ER](./diagrama_modelo.png)
@@ -212,12 +210,4 @@ psi-1/
 
 ## Armazenamento de dados
 
-O banco de dados é armazenado localmente, sem nenhuma comunicação com serviços externos:
-
-| Sistema operacional | Localização padrão                               |
-| ------------------- | ------------------------------------------------ |
-| Linux               | `~/.local/share/PSI/auditoria.db`                |
-| macOS               | `~/Library/Application Support/PSI/auditoria.db` |
-| Windows             | `%APPDATA%\PSI\auditoria.db`                     |
-
-A localização pode ser sobrescrita pela variável de ambiente `PSI_DATA_DIR`.
+O banco de dados é armazenado localmente, sem nenhuma comunicação com serviços externos.
