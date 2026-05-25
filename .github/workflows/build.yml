@@ -1,0 +1,128 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build — ${{ matrix.os-label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os-label: Linux
+            artifact: PSI-linux
+            ext: tar.gz
+          - runner: windows-latest
+            os-label: Windows
+            artifact: PSI-windows
+            ext: zip
+          - runner: macos-latest
+            os-label: macOS
+            artifact: PSI-macos
+            ext: tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ── Graphviz (instalação global obrigatória) ───────────────────────────
+      - name: Instalar Graphviz — Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y graphviz libgraphviz-dev pkg-config
+
+      - name: Instalar Graphviz — macOS
+        if: runner.os == 'macOS'
+        run: brew install graphviz
+
+      - name: Instalar Graphviz — Windows
+        if: runner.os == 'Windows'
+        run: choco install graphviz --no-progress -y
+        shell: cmd
+
+      # ── Dependências Python ────────────────────────────────────────────────
+      - name: Instalar dependências — Linux / macOS
+        if: runner.os != 'Windows'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Instalar dependências — Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+
+          # pygraphviz no Windows exige flags de compilação especiais;
+          # instala o restante das dependências primeiro
+          Get-Content requirements.txt |
+            Where-Object { $_ -notmatch '^pygraphviz' } |
+            Set-Content reqs_filtered.txt
+          pip install -r reqs_filtered.txt pyinstaller
+
+          # Instala pygraphviz apontando para o Graphviz instalado pelo choco
+          $env:PATH = "C:\Program Files\Graphviz\bin;$env:PATH"
+          pip install pygraphviz `
+            --config-settings="--global-option=build_ext" `
+            --config-settings="--global-option=-IC:\Program Files\Graphviz\include" `
+            --config-settings="--global-option=-LC:\Program Files\Graphviz\lib"
+
+      # ── Build com PyInstaller ──────────────────────────────────────────────
+      - name: Build — Linux / macOS
+        if: runner.os != 'Windows'
+        run: pyinstaller PSI.spec --clean --noconfirm
+
+      - name: Build — Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:GRAPHVIZ_BIN = "C:\Program Files\Graphviz\bin"
+          $env:PATH = "$env:GRAPHVIZ_BIN;$env:PATH"
+          pyinstaller PSI.spec --clean --noconfirm
+
+      # ── Empacotar ─────────────────────────────────────────────────────────
+      - name: Empacotar — Linux / macOS
+        if: runner.os != 'Windows'
+        run: tar -C dist -czvf ${{ matrix.artifact }}.tar.gz PSI
+
+      - name: Empacotar — Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist\PSI -DestinationPath ${{ matrix.artifact }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.${{ matrix.ext }}
+
+  # ── Publica release só quando acionado por tag ────────────────────────────
+  release:
+    name: Publicar Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            PSI-linux/PSI-linux.tar.gz
+            PSI-macos/PSI-macos.tar.gz
+            PSI-windows/PSI-windows.zip

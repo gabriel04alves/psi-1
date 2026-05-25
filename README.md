@@ -3,6 +3,29 @@
 > Projeto desenvolvido como atividade da disciplina de Segurança da Informação.  
 > Especificação: [PSI.md](https://github.com/mehranmisaghi/cybersecurity/blob/main/projetos/PSI.md)
 
+[![Build & Release](https://github.com/gabriel04alves/psi-1/actions/workflows/build.yml/badge.svg)](https://github.com/gabriel04alves/psi-1/actions/workflows/build.yml)
+
+## Download
+
+Executáveis pré-compilados gerados automaticamente pelo GitHub Actions — **não é necessário instalar Python**.
+
+| Plataforma | Download |
+|---|---|
+| Linux (x86-64) | [PSI-linux.tar.gz](https://github.com/gabriel04alves/psi-1/releases/latest/download/PSI-linux.tar.gz) |
+| Windows (x86-64) | [PSI-windows.zip](https://github.com/gabriel04alves/psi-1/releases/latest/download/PSI-windows.zip) |
+| macOS (Intel / Apple Silicon) | [PSI-macos.tar.gz](https://github.com/gabriel04alves/psi-1/releases/latest/download/PSI-macos.tar.gz) |
+
+Descompacte e execute:
+
+```bash
+# Linux / macOS
+tar -xzvf PSI-linux.tar.gz
+./PSI/PSI
+
+# Windows — extraia o .zip e execute
+PSI\PSI.exe
+```
+
 ---
 
 ## O que é o PSI?
@@ -173,17 +196,19 @@ CONTROLES = [
 
 ## Executável standalone (sem Python)
 
-Para distribuir a aplicação sem exigir Python instalado, consulte o **[Guia de Build](GUIA_BUILD.md)**. Ele cobre Linux, Windows e macOS usando PyInstaller.
+Os executáveis são gerados automaticamente via **GitHub Actions** a cada nova tag `v*.*.*` e publicados na [página de Releases](https://github.com/gabriel04alves/psi-1/releases). Consulte a seção [Download](#download) acima para obter a versão mais recente.
+
+Para compilar manualmente (necessário para adaptar ou redistribuir), consulte o **[Guia de Build](GUIA_BUILD.md)**. Ele cobre Linux, Windows e macOS usando PyInstaller.
 
 Resumo rápido:
 
 ```bash
 # Linux / macOS
-pip install -r requeriments.txt
+pip install -r requirements.txt pyinstaller
 ./build.sh
 
 # Windows
-pip install -r requeriments.txt
+pip install -r requirements.txt pyinstaller
 build.bat
 ```
 
@@ -207,8 +232,10 @@ psi-1/
 │   └── db.py               # Camada de acesso ao banco SQLite
 ├── data/                   # Bases de controles ISO e banco local
 ├── utils/                  # Utilitários (PDF, gráficos, relatórios)
+├── .github/workflows/
+│   └── build.yml           # CI: build e release automático para 3 plataformas
 ├── requirements.txt
-├── build.sh / build.bat    # Scripts de build para executável
+├── build.sh / build.bat    # Scripts de build local para executável
 └── GUIA_BUILD.md           # Guia detalhado de empacotamento
 ```
 
