@@ -55,7 +55,9 @@ O **Projeto de Segurança de Informação** é uma plataforma web para gestão e
 ### Pré-requisitos
 
 - Python 3.11 ou superior
-- Graphviz (`dot` acessível no PATH)
+- Graphviz instalado **globalmente no sistema** (não basta instalar via `pip`)
+
+> **Atenção:** o Graphviz precisa estar disponível no PATH do sistema operacional — o pacote Python `graphviz` (incluído em `requirements.txt`) é apenas uma interface e depende do binário `dot` instalado nativamente. Verifique com `dot -V` antes de iniciar a aplicação.
 
 **Linux (Fedora/RHEL):**
 
