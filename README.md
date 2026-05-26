@@ -12,7 +12,7 @@ O **Projeto de Segurança de Informação** é uma plataforma web para gestão e
 ### Principais vantagens
 
 - **Local-first e seguro** — toda a aplicação roda na máquina do próprio usuário. Nenhum dado é enviado a servidores externos; o banco de dados (SQLite) fica armazenado localmente.
-- **Portável** — pode ser empacotado como executável standalone (sem necessidade de instalar Python) para Windows, Linux e macOS.
+- **Portável** — funciona para diferentes normas.
 - **Sem dependências de nuvem** — funciona completamente offline após a instalação.
 
 ### Funcionalidades
@@ -55,29 +55,6 @@ O **Projeto de Segurança de Informação** é uma plataforma web para gestão e
 ### Pré-requisitos
 
 - Python 3.11 ou superior
-- Graphviz instalado **globalmente no sistema** (não basta instalar via `pip`)
-
-> **Atenção:** o Graphviz precisa estar disponível no PATH do sistema operacional — o pacote Python `graphviz` (incluído em `requirements.txt`) é apenas uma interface e depende do binário `dot` instalado nativamente. Verifique com `dot -V` antes de iniciar a aplicação.
-
-**Linux (Fedora/RHEL):**
-
-```bash
-sudo dnf install -y python3 python3-pip python3-virtualenv graphviz graphviz-devel
-```
-
-**Linux (Ubuntu/Debian):**
-
-```bash
-sudo apt install -y python3 python3-pip python3-venv graphviz libgraphviz-dev
-```
-
-**Windows:** instale o [Python](https://www.python.org/downloads/) e o [Graphviz](https://graphviz.org/download/) e adicione ambos ao PATH.
-
-**macOS:**
-
-```bash
-brew install python@3.11 graphviz
-```
 
 ### Passos
 
@@ -86,15 +63,32 @@ brew install python@3.11 graphviz
 git clone https://github.com/gabriel04alves/psi-1
 cd psi-1
 
-# 2. Crie e ative o ambiente virtual
+# 2. Instale o Graphviz (requisito do sistema)
+# Linux (Fedora/RHEL):
+sudo dnf install -y python3 python3-pip python3-virtualenv graphviz graphviz-devel
+
+# Linux (Ubuntu/Debian):
+sudo apt install -y python3 python3-pip python3-venv graphviz libgraphviz-dev
+
+# macOS:
+brew install python@3.11 graphviz
+
+# Windows: instale o Python e o Graphviz em https://graphviz.org/download/
+# e adicione ambos ao PATH
+```
+
+> **Atenção:** o Graphviz precisa estar disponível no PATH do sistema operacional — o pacote Python `graphviz` (incluído em `requirements.txt`) é apenas uma interface e depende do binário `dot` instalado nativamente. Verifique com `dot -V` antes de iniciar a aplicação.
+
+```bash
+# 3. Crie e ative o ambiente virtual
 python3 -m venv venv
 source venv/bin/activate      # Linux / macOS
 # venv\Scripts\activate       # Windows
 
-# 3. Instale as dependências
+# 4. Instale as dependências
 pip install -r requirements.txt
 
-# 4. Inicie a aplicação
+# 5. Inicie a aplicação
 streamlit run streamlit_app.py
 ```
 
@@ -210,4 +204,4 @@ psi-1/
 
 ## Armazenamento de dados
 
-O banco de dados é armazenado localmente, sem nenhuma comunicação com serviços externos.
+O banco de dados é armazenado localmente, sem nenhuma comunicação com serviços externos e pode ser importado e exportado.
