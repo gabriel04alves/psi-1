@@ -3,10 +3,13 @@
 from datetime import datetime
 from io import BytesIO
 
+from reportlab.graphics.charts.barcharts import HorizontalBarChart, VerticalBarChart
+from reportlab.graphics.charts.piecharts import Pie
+from reportlab.graphics.shapes import Drawing, String
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     HRFlowable,
@@ -17,7 +20,10 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-# ── Paleta
+# ── Largura útil da página A4 com margens de 2 cm
+_PAGE_W = A4[0] - 4 * cm  # ≈ 481.9 pt
+
+# ── Paleta base
 _VERDE = colors.HexColor("#28965A")
 _VERDE_CLARO = colors.HexColor("#f0fdf4")
 _VERMELHO = colors.HexColor("#991b1b")
@@ -32,6 +38,30 @@ _SUBHDR_BG = colors.HexColor("#334155")
 _LINHA_ALT = colors.HexColor("#f1f5f9")
 _TEXTO = colors.HexColor("#1e293b")
 _CINZA_TEXTO = colors.HexColor("#475569")
+
+# ── Cores vivas para gráficos
+_VERDE_G = colors.HexColor("#22c55e")
+_VERM_G = colors.HexColor("#ef4444")
+_AMAR_G = colors.HexColor("#f59e0b")
+_CINZA_G = colors.HexColor("#94a3b8")
+
+_CORES_STATUS_G = {
+    "conforme": _VERDE_G,
+    "nao_conforme": _VERM_G,
+    "em_andamento": _AMAR_G,
+    "nao_se_aplica": _CINZA_G,
+}
+
+# Ordem de exibição dos controles no relatório (pior situação primeiro)
+_STATUS_PRIORIDADE = {
+    "nao_conforme": 0,
+    "em_andamento": 1,
+    "conforme": 2,
+    "nao_se_aplica": 3,
+}
+
+# Ordem de exibição das mudanças no comparativo
+_DELTA_PRIORIDADE = {"↓ Piorou": 0, "— Novo": 1, "↑ Melhorou": 2, "= Igual": 3}
 
 _STATUS_BG = {
     "Conforme": _VERDE_CLARO,
@@ -56,10 +86,8 @@ _DELTA_FG = {
     "— Novo": _AZUL,
 }
 
+
 # ── Estilos de texto
-_base = getSampleStyleSheet()
-
-
 def _st(name, **kw) -> ParagraphStyle:
     return ParagraphStyle(name, **kw)
 
@@ -86,20 +114,201 @@ _H2 = _st(
 )
 _BODY = _st("psi_body", fontSize=9, textColor=_TEXTO, leading=13)
 _META = _st("psi_meta", fontSize=9, textColor=_CINZA_TEXTO, leading=13)
-_SMALL = _st("psi_small", fontSize=8, textColor=_CINZA_TEXTO, leading=11)
 _FOOTER = _st(
     "psi_footer", fontSize=8, textColor=_CINZA_TEXTO, alignment=TA_RIGHT, leading=10
 )
 _CELL = _st("psi_cell", fontSize=8, textColor=_TEXTO, leading=11, wordWrap="CJK")
-_CELL_C = _st(
-    "psi_cell_c", fontSize=8, textColor=_TEXTO, leading=11, alignment=TA_CENTER
+_ALERTA_HDR = _st(
+    "psi_alerta_hdr",
+    fontSize=10,
+    textColor=_VERMELHO,
+    leading=14,
+    fontName="Helvetica-Bold",
+    spaceAfter=3,
 )
+_ALERTA_ITEM = _st(
+    "psi_alerta_item", fontSize=8, textColor=_VERMELHO, leading=11, leftIndent=8
+)
+_INSIGHT = _st("psi_insight", fontSize=9, textColor=_AMARELO, leading=12, spaceAfter=2)
+_LEGENDA = _st("psi_legenda", fontSize=7, textColor=_TEXTO, leading=10)
+_LEGENDA_SM = _st("psi_legenda_sm", fontSize=7, textColor=_CINZA_TEXTO, leading=10)
 
-# ── Helpers internos
+
+# ── Gráficos
+
+
+def _grafico_pizza(contagem: dict, raio: float = 68) -> Drawing:
+    """Pizza de distribuição de status (sem labels embutidos)."""
+    ORDEM = ["nao_conforme", "em_andamento", "conforme", "nao_se_aplica"]
+    pares = [(k, contagem.get(k, 0)) for k in ORDEM if contagem.get(k, 0) > 0]
+    largura = raio * 2 + 20
+    altura = raio * 2 + 20
+    d = Drawing(largura, altura)
+    if not pares:
+        return d
+
+    pie = Pie()
+    pie.x = 10
+    pie.y = 10
+    pie.width = raio * 2
+    pie.height = raio * 2
+    pie.data = [v for _, v in pares]
+    pie.labels = [""] * len(pares)
+    pie.slices.strokeColor = colors.white
+    pie.slices.strokeWidth = 2
+
+    for i, (k, _) in enumerate(pares):
+        pie.slices[i].fillColor = _CORES_STATUS_G[k]
+
+    d.add(pie)
+    return d
+
+
+def _legenda_status(contagem: dict) -> Table:
+    """Tabela de legenda colorida para o gráfico de pizza."""
+    ORDEM = ["nao_conforme", "em_andamento", "conforme", "nao_se_aplica"]
+    LABELS = {
+        "conforme": "Conforme",
+        "nao_conforme": "Não Conforme",
+        "em_andamento": "Em Andamento",
+        "nao_se_aplica": "Não se Aplica",
+    }
+    total = sum(contagem.get(k, 0) for k in ORDEM)
+    dados = []
+    cmds = []
+    row_idx = 0
+    for k in ORDEM:
+        v = contagem.get(k, 0)
+        if v == 0:
+            continue
+        pct = round(v / total * 100, 1) if total else 0
+        dados.append(
+            [
+                "",
+                Paragraph(LABELS[k], _LEGENDA),
+                Paragraph(f"{v}  ({pct}%)", _LEGENDA_SM),
+            ]
+        )
+        cmds.append(("BACKGROUND", (0, row_idx), (0, row_idx), _CORES_STATUS_G[k]))
+        row_idx += 1
+
+    if not dados:
+        return Table([[""]])
+
+    t = Table(dados, colWidths=[10, 100, 50])
+    cmds += [
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ROWBACKGROUNDS", (1, 0), (-1, -1), [colors.white, _LINHA_ALT]),
+    ]
+    t.setStyle(TableStyle(cmds))
+    return t
+
+
+def _grafico_barras_v(
+    labels: list[str], valores: list[float], largura: float = 480, altura: float = 130
+) -> Drawing:
+    """Barras verticais: evolução da conformidade geral por auditoria."""
+    if not valores:
+        return Drawing(largura, altura)
+
+    d = Drawing(largura, altura)
+
+    bc = VerticalBarChart()
+    bc.x = 35
+    bc.y = 25
+    bc.width = largura - 55
+    bc.height = altura - 45
+
+    bc.data = [valores]
+    bc.categoryAxis.categoryNames = labels
+    bc.categoryAxis.labels.fontSize = 7
+
+    bc.valueAxis.valueMin = 0
+    bc.valueAxis.valueMax = 100
+    bc.valueAxis.valueStep = 20
+    bc.valueAxis.labels.fontSize = 7
+
+    bc.bars[0].fillColor = _VERDE_G
+    bc.bars[0].strokeColor = None
+
+    for i, v in enumerate(valores):
+        cor = _VERM_G if v < 50 else (_AMAR_G if v < 75 else _VERDE_G)
+        bc.bars[(0, i)].fillColor = cor
+
+    d.add(bc)
+    d.add(
+        String(
+            bc.x + bc.width / 2,
+            altura - 8,
+            "Evolução da Conformidade Geral (%)",
+            fontSize=8,
+            fillColor=_TEXTO,
+            textAnchor="middle",
+        )
+    )
+    return d
+
+
+def _grafico_comparativo(
+    temas: list[str],
+    vals_base: list[float],
+    vals_atual: list[float],
+    largura: float = 480,
+    altura: float = 145,
+) -> Drawing:
+    """Barras agrupadas: base (cinza) vs atual (verde) por tipo de controle."""
+    if not temas:
+        return Drawing(largura, altura)
+
+    d = Drawing(largura, altura)
+
+    bc = VerticalBarChart()
+    bc.x = 35
+    bc.y = 35
+    bc.width = largura - 55
+    bc.height = altura - 55
+
+    bc.data = [vals_base, vals_atual]
+    bc.categoryAxis.categoryNames = [t[:14] for t in temas]
+    bc.categoryAxis.labels.fontSize = 6
+    bc.categoryAxis.labels.angle = 30
+    bc.categoryAxis.labels.boxAnchor = "ne"
+    bc.categoryAxis.labels.dx = -4
+
+    bc.valueAxis.valueMin = 0
+    bc.valueAxis.valueMax = 100
+    bc.valueAxis.valueStep = 25
+    bc.valueAxis.labels.fontSize = 7
+
+    bc.bars[0].fillColor = _CINZA_G
+    bc.bars[0].strokeColor = None
+    bc.bars[1].fillColor = _VERDE_G
+    bc.bars[1].strokeColor = None
+
+    d.add(bc)
+    d.add(
+        String(
+            bc.x + bc.width / 2,
+            altura - 8,
+            "Base (cinza) vs Atual (verde) por Tipo de Controle (%)",
+            fontSize=8,
+            fillColor=_TEXTO,
+            textAnchor="middle",
+        )
+    )
+    return d
+
+
+# ── Bloco de atenção executiva
+
+# ── Helpers de layout
 
 
 def _hdr_table(texto_esq: str, texto_dir: str = "") -> Table:
-    """Bloco de cabeçalho colorido com título e subtítulo."""
     t = Table(
         [[Paragraph(texto_esq, _TITLE), Paragraph(texto_dir, _SUB)]],
         colWidths=["70%", "30%"],
@@ -121,7 +330,6 @@ def _hdr_table(texto_esq: str, texto_dir: str = "") -> Table:
 
 
 def _meta_table(pares: list[tuple[str, str]]) -> Table:
-    """Tabela de metadados chave: valor em duas colunas."""
     dados = [[Paragraph(k, _META), Paragraph(v, _BODY)] for k, v in pares]
     t = Table(dados, colWidths=["30%", "70%"])
     t.setStyle(
@@ -152,10 +360,6 @@ def _tabela_dados(
     status_col: int | None = None,
     delta_col: int | None = None,
 ) -> Table:
-    """
-    Tabela genérica com cabeçalho escuro, linhas alternadas e
-    coloração opcional de status/delta em colunas específicas.
-    """
     cabecalho_styled = [
         Paragraph(
             c,
@@ -177,7 +381,6 @@ def _tabela_dados(
     t = Table(dados, colWidths=col_widths, repeatRows=1)
 
     style_cmds = [
-        # Cabeçalho
         ("BACKGROUND", (0, 0), (-1, 0), _SUBHDR_BG),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
@@ -188,7 +391,6 @@ def _tabela_dados(
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _LINHA_ALT]),
     ]
 
-    # Colorir coluna de status célula a célula
     if status_col is not None:
         for r_idx, row in enumerate(linhas):
             val = str(row[status_col]) if status_col < len(row) else ""
@@ -222,7 +424,6 @@ def _tabela_dados(
 
 
 def _metricas_table(metricas: list[tuple[str, str]]) -> Table:
-    """Linha de métricas grandes em destaque."""
     dados = [
         [
             Paragraph(
@@ -252,7 +453,7 @@ def _metricas_table(metricas: list[tuple[str, str]]) -> Table:
             for i, (k, _) in enumerate(metricas)
         ],
     ]
-    t = Table(dados, colWidths=[f"{100//len(metricas)}%" for _ in metricas])
+    t = Table(dados, colWidths=[f"{100 // len(metricas)}%" for _ in metricas])
     t.setStyle(
         TableStyle(
             [
@@ -310,7 +511,7 @@ def gerar_pdf_auditoria(
         bottomMargin=2 * cm,
     )
 
-    data_ref = (auditoria.get("data_fim") or auditoria["data_inicio"])[:10]
+    data_inicio = auditoria["data_inicio"][:10]
     status_txt = (
         "Concluída" if auditoria.get("status") == "concluida" else "Em Andamento"
     )
@@ -325,10 +526,10 @@ def gerar_pdf_auditoria(
     story = []
 
     # Cabeçalho
-    story.append(_hdr_table(titulo_rel, f"{norma}  ·  {data_ref}"))
+    story.append(_hdr_table(titulo_rel, f"{norma}  ·  {data_inicio}"))
     story.append(Spacer(1, 0.4 * cm))
 
-    # Metadados
+    # Identificação
     story += _section("Identificação")
     story.append(
         _meta_table(
@@ -360,7 +561,7 @@ def gerar_pdf_auditoria(
         )
     )
 
-    # Métricas gerais
+    # Conformidade geral — métricas + gráficos
     story += _section("Conformidade Geral")
     cnt = stats["contagem"]
     story.append(
@@ -374,10 +575,45 @@ def gerar_pdf_auditoria(
             ]
         )
     )
+    story.append(Spacer(1, 0.3 * cm))
 
-    # Tabela por tipo de controle
-    story += _section("Conformidade por Tipo de Controle")
+    # Gráficos: pizza + legenda | barras por tema
     temas_src = stats["temas"]
+    pie_d = _grafico_pizza(cnt, raio=68)
+    leg_t = _legenda_status(cnt)
+
+    # coluna esquerda: pizza sobre legenda
+    col_esq = Table([[pie_d], [leg_t]], colWidths=[210])
+    col_esq.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+
+    graficos = Table([[col_esq]], colWidths=[215, 265])
+    graficos.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    story.append(graficos)
+    story.append(Spacer(1, 0.3 * cm))
+
+    # Tabela por tipo de controle — pior primeiro
+    story += _section("Conformidade por Tipo de Controle")
     linhas_tema = [
         [
             t["nome"],
@@ -388,7 +624,7 @@ def gerar_pdf_auditoria(
             t["nao_se_aplica"],
             f"{t['pct']}%",
         ]
-        for t in temas_src
+        for t in sorted(temas_src, key=lambda t: t["pct"])
     ]
     story.append(
         _tabela_dados(
@@ -406,13 +642,14 @@ def gerar_pdf_auditoria(
         )
     )
 
-    # Detalhamento por controle
+    # Detalhamento de controles — Não Conforme → Em Andamento → Conforme → N/A
     story += _section("Detalhamento de Controles")
     resps_src = (
         respostas
         if not tema_filtro
         else [r for r in respostas if r["tema_id"] == tema_filtro]
     )
+    resps_ord = sorted(resps_src, key=lambda r: _STATUS_PRIORIDADE.get(r["status"], 99))
     linhas_ctrl = [
         [
             r["controle_id"],
@@ -420,7 +657,7 @@ def gerar_pdf_auditoria(
             STATUS_LABEL.get(r["status"], r["status"]),
             (r.get("observacao") or "")[:120],
         ]
-        for r in resps_src
+        for r in resps_ord
     ]
     story.append(
         _tabela_dados(
@@ -452,9 +689,7 @@ def gerar_pdf_comparativo(
     resps_base: list[dict],
     resps_atual: list[dict],
 ) -> bytes:
-    """
-    Gera PDF de relatório comparativo entre duas auditorias.
-    """
+    """Gera PDF de relatório comparativo entre duas auditorias."""
     from utils.analytics import STATUS_LABEL
 
     buf = BytesIO()
@@ -493,7 +728,7 @@ def gerar_pdf_comparativo(
         )
     )
 
-    # Auditorias
+    # Auditorias comparadas
     story += _section("Auditorias Comparadas")
     story.append(
         _tabela_dados(
@@ -526,7 +761,7 @@ def gerar_pdf_comparativo(
         )
     )
 
-    # Métricas comparativas
+    # Conformidade geral — métricas + gráfico comparativo
     story += _section("Conformidade Geral")
     pb, pa = stats_base["pct_geral"], stats_atual["pct_geral"]
     delta_g = round(pa - pb, 1)
@@ -542,12 +777,24 @@ def gerar_pdf_comparativo(
             ]
         )
     )
+    story.append(Spacer(1, 0.3 * cm))
 
-    # Por tipo de controle
-    story += _section("Evolução por Tipo de Controle")
+    # Gráfico agrupado base vs atual
     temas_b = {t["nome"]: t for t in stats_base["temas"]}
     temas_a = {t["nome"]: t for t in stats_atual["temas"]}
     todos_temas = sorted(set(temas_b) | set(temas_a))
+    if todos_temas:
+        story.append(
+            _grafico_comparativo(
+                todos_temas,
+                [temas_b[n]["pct"] if n in temas_b else 0.0 for n in todos_temas],
+                [temas_a[n]["pct"] if n in temas_a else 0.0 for n in todos_temas],
+            )
+        )
+        story.append(Spacer(1, 0.3 * cm))
+
+    # Evolução por tipo de controle
+    story += _section("Evolução por Tipo de Controle")
     linhas_ev = []
     for nome in todos_temas:
         pb_t = temas_b[nome]["pct"] if nome in temas_b else 0.0
@@ -563,7 +810,7 @@ def gerar_pdf_comparativo(
         )
     )
 
-    # Mudanças por controle
+    # Mudanças por controle — Piorou → Novo → Melhorou → Igual
     story += _section("Mudanças por Controle")
     map_b = {r["controle_id"]: r for r in resps_base}
     map_a = {r["controle_id"]: r for r in resps_atual}
@@ -596,6 +843,10 @@ def gerar_pdf_comparativo(
                 _delta(s_b, s_a),
             ]
         )
+
+    # Pior situação primeiro
+    linhas_mud.sort(key=lambda r: _DELTA_PRIORIDADE.get(r[5], 99))
+
     story.append(
         _tabela_dados(
             ["Tipo de Controle", "ID", "Nome", "Base", "Atual", "Mudança"],
@@ -658,6 +909,7 @@ def gerar_pdf_evolucao(
         )
     )
 
+    # Tabela resumo + gráfico de evolução
     story += _section("Evolução Geral")
     linhas_ev = []
     for a, st in auds_com_stats:
@@ -680,6 +932,16 @@ def gerar_pdf_evolucao(
             col_widths=["7%", "18%", "13%", "13%", "16%", "15%", "12%"],
         )
     )
+    story.append(Spacer(1, 0.3 * cm))
+
+    # Gráfico de barras: evolução da conformidade geral
+    labels_ev = [
+        f"#{a['id']}\n{(a.get('data_fim') or a['data_inicio'])[:7]}"
+        for a, _ in auds_com_stats
+    ]
+    valores_ev = [st["pct_geral"] for _, st in auds_com_stats]
+    story.append(_grafico_barras_v(labels_ev, valores_ev, largura=480, altura=130))
+    story.append(Spacer(1, 0.3 * cm))
 
     # Evolução por tema
     story += _section("Evolução por Tipo de Controle")
